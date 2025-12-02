@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+// useEffect removed; useFrameworkReady does the necessary effect
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
