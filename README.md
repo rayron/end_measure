@@ -38,6 +38,14 @@ On the Camera screen:
 
 - Auto-distance alert: once you set the `Tee` and then set the `Jack` point, the app will automatically compute the distance and show it as an alert (if a reference or calibration is available). If a conversion to meters is not possible, the alert will suggest setting a reference or calibration.
 
+- Audio feedback: when a distance is calculated successfully, the app will speak the distance out loud using the device's TTS (text-to-speech) facilities when available.
+
+Note: if the speech functionality doesn't work on your device, install the Expo TTS package:
+
+```bash
+expo install expo-speech
+```
+
 Tap behavior:
 
 - Tapping the camera image places a point according to the current mode (`Set Tee`, `Set Jack`, `Set Ref`, `Calibrate`). When in `Calibrate` mode and 4 points are present, tapping starts a new calibration sequence producing a fresh list of four calibration points.

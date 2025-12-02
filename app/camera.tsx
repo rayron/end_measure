@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, TouchableOpacity, Dimensions, TextInput, Alert, ScrollView } from 'react-native';
+import * as Speech from 'expo-speech';
 import { Camera as CameraApi, CameraView } from 'expo-camera';
 import * as MediaLibrary from 'expo-media-library';
 import Svg, { Circle, Line, Text as TextSVG } from 'react-native-svg';
@@ -34,6 +35,45 @@ export default function CameraMeasure() {
 
   const [mode, setMode] = useState<'tee' | 'jack' | 'reference' | 'calibrate' | 'none'>('tee');
   const [referenceDistance, setReferenceDistance] = useState<string>('1.0'); // in meters
+  const [lastSpokenDistance, setLastSpokenDistance] = useState<number | null>(null);
+  const computeMetersBetween = useCallback((aPt: Point | null, bPt: Point | null) => {
+    if (!aPt || !bPt) return null;
+    // prefer homography if available
+    if (homography) {
+      const a = applyHomography(homography, aPt);
+      const b = applyHomography(homography, bPt);
+      const meters = Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
+      return meters;
+    }
+    const pxDist = pixelDistance(aPt, bPt);
+    if (refA && refB && Number(referenceDistance) > 0) {
+      const refPx = pixelDistance(refA, refB);
+      const metersPerPixel = Number(referenceDistance) / refPx;
+      const meters = pxDist * metersPerPixel;
+      return meters; // in meters
+    }
+    return null;
+  }, [homography, refA, refB, referenceDistance]);
+
+  const measureDistance = useCallback(() => computeMetersBetween(teePoint, jackPoint), [computeMetersBetween, teePoint, jackPoint]);
+
+  // Speak measured distance whenever it changes to a new value.
+  useEffect(() => {
+    const meters = computeMetersBetween(teePoint, jackPoint);
+    if (!meters) return;
+    const rounded = Number(meters.toFixed(2));
+    // only speak if there is a change or first computed value
+    if (lastSpokenDistance !== rounded) {
+      const text = `${rounded} metres (${(meters * 3.28084).toFixed(2)} feet)`;
+      try {
+        Speech.stop();
+        Speech.speak(text);
+        setLastSpokenDistance(rounded);
+      } catch (err) {
+        console.warn('Speech failed', err);
+      }
+    }
+  }, [teePoint, jackPoint, refA, refB, homography, referenceDistance, computeMetersBetween, lastSpokenDistance]);
 
   useEffect(() => {
     (async () => {
@@ -90,26 +130,11 @@ export default function CameraMeasure() {
     setHomography(null);
   };
 
-  const computeMetersBetween = (aPt: Point | null, bPt: Point | null) => {
-    if (!aPt || !bPt) return null;
-    // prefer homography if available
-    if (homography) {
-      const a = applyHomography(homography, aPt);
-      const b = applyHomography(homography, bPt);
-      const meters = Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
-      return meters;
-    }
-    const pxDist = pixelDistance(aPt, bPt);
-    if (refA && refB && Number(referenceDistance) > 0) {
-      const refPx = pixelDistance(refA, refB);
-      const metersPerPixel = Number(referenceDistance) / refPx;
-      const meters = pxDist * metersPerPixel;
-      return meters; // in meters
-    }
-    return null;
-  };
+  
 
-  const measureDistance = () => computeMetersBetween(teePoint, jackPoint);
+  
+
+  
 
   const formattedDistance = () => {
     const meters = measureDistance();
